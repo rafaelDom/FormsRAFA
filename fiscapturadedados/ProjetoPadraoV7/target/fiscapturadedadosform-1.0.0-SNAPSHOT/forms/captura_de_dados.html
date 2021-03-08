@@ -1,0 +1,217 @@
+<form role="form" 
+	name="frmconsultaatualizacaodelimiteevigencia"
+	class="form-horizontal"
+	accept-charset="utf-8">
+
+		<script cam-script type="text/form-script">
+        inject(['$http', '$q', '$sce', function($http, $q, $sce) {
+
+            var mng = camForm.variableManager;
+            const Authorization = 'Basic cnBhMDE6cnBhMDFAYnA0';
+            const formAttach = new FormData();
+
+			const strMapToObj=a=>{let b=Object.create(null);for(let[c,d]of a)b[c]=d;return b},objToStrMap=a=>{let b=new Map;for(let c of Object.keys(a))b.set(c,a[c]);return b};
+			const getObjectFromParsedValue=a=>{try{if(null==mng.variableValue(a)||""==mng.variableValue(a))return null;let b={},c=mng.variableValue(a);const d=c.replace(/[\[\]]/ig,"").split(/\'\s*,\s*\'/);for(let a in d){const[c,e]=d[a].replace(/\'/ig,"").split(":");Object.defineProperty(b,c,{enumerable:!0,configurable:!0,writable:!0,value:e})}return console.log("field",b),b}catch(b){return console.log(`Erro ao pegar variável ${a} !`,b),{}}};
+			const retrieveVariable=a=>{try{mng.fetchVariable(a)}catch(b){}};
+			const setVariable=(a,b,c)=>{let d="";try{d=b instanceof Map?JSON.stringify([...b]):b instanceof Array?JSON.stringify(b):JSON.stringify(b).replace(/[\"]/ig,"").replace(/\{/ig,"[").replace(/\}/ig,"]"),mng.variable(a)&&(mng.destroyVariable(a),console.log(`Variável '${a}' destruída com sucesso !`)),mng.createVariable({name:a,value:d,type:c || 'String',isDirty:false}),console.log(`Criada variável '${a}' com o valor '${d}' e com tipo '${c}'`)}catch(b){console.log(`Erro ao setar a variável ${a} com o valor ${d}`,b)}};
+			const getVariableValue = (varName, emptyValue = null) => mng.variable(varName) && mng.variableValue(varName) || emptyValue;
+			const getVariableIntValue = (varName) => mng.variable(varName) && parseInt(mng.variableValue(varName)) || 0;
+			const getArrayValueFromJson = (varName) => (mng.variable(varName) && mng.variableValue(varName) !== undefined && JSON.parse(mng.variableValue(varName).replace(/\'/ig, '"'))) || [];
+			const isEmpty = (value) => value === null || value === undefined || value === '';
+
+            $scope.labelStyle = "label-control text-muted text-md";
+            $scope.infoStyle = (val) => val ? "text-info text-md" : "text-danger text-md";
+            $scope.titleStyle = "text-info text-lg";
+            $scope.errTitleStyle = "text-danger text-lg font-weight-light font-italic";
+            $scope.buttonStyle = "btn btn-md btn-primary";
+            $scope.buttonErrStyle = "btn btn-md btn-danger";
+            $scope.columnCombined = "col col-sm-offset-2 col-md-offset-2 col-lg-offset-2 col-md-10 col-lg-10 col-sm-10";
+            $scope.columnButton = "col col-sm-offset-3 col-md-offset-3 col-lg-offset-3 col-md-9 col-lg-9 col-sm-9";
+            $scope.columnForInformation = (`col col-sm-offset-1 col-md-offset-1 col-lg-offset-1 col-sm-3 col-md-3 col-lg-3 col-xs-12 `);
+            $scope.columnForSoloValue = (columnSize = 7) => (
+                `col col-sm-offset-1 col-md-offset-1 col-lg-offset-1 col-sm-${columnSize} col-md-${columnSize} col-lg-${columnSize} col-xs-12 `
+            );
+            $scope.columnForHeader = (`col col-sm-offset-3 col-md-offset-3 col-lg-offset-3 col-xs-offset-3 col-sm-7 col-md-7 col-lg-7 col-xs-9 `);
+            
+            $scope.columnLabel = "col col-sm-3 col-md-3 col-lg-3 col-xs-12 text-right";
+            $scope.columnForValue = "col col-sm-7 col-md-7 col-lg-7 col-xs-12";
+            $scope.columnForCombo = "col col-sm-5 col-md-5 col-lg-5 col-xs-12";
+
+            const getMessageFromError = (error) => error.message || JSON.stringify(error);
+            $scope.lesserMessage = '';
+            $scope.possuiMensagensErro = () => $scope.lesserMessage && $scope.lesserMessage.length > 0;
+            $scope.setLesserMessage = (message) => {
+                let mainTimeout;
+                if (message === null  || message === undefined) return;
+                    $scope.lesserMessage += $scope.lesserMessage.length > 0 ? ' | ' + message : '';
+                   // $scope.lesserMessage += 'Erro... Favor entrar em contato com o suporte da BPA.'
+                if (mainTimeout !== undefined) window.clearTimeout(mainTimeout);
+                    mainTimeout = window.setTimeout(() => { $scope.lesserMessage = '';}, 20000);
+            }
+            
+            const saveFileOnDiskReq = async (formData) => {
+                return {
+                    method: 'POST',
+                    url: ''.concat(window.location.origin, '/bpautils/api/files/createRedeFile'),
+                    data: formData,
+                    headers: {
+                        'Content-Type': undefined,
+                        'Authorization': Authorization
+                    },
+                    transformRequest: angular.identity,
+                    transformResponse: function (data, headersGetter, status) {
+                        return data;
+                    }
+                }
+            };
+
+            $scope.cleanAttach = () => {$scope.attach = null; $scope.attachString = null; $scope.chooseAttach = null; 
+                $scope.caminhoDoArquivo = null;}
+                
+            $scope.changeFiles = async () => {
+                $scope.attach = event.target.files[0];
+                $scope.attachString = $scope.attach.name;
+                const defer = $q.defer();
+
+                $scope.caminhoDoArquivo = null;
+                
+                $scope.whereToSave = '//10.111.177.141/BKP_BPA/TesteForm/capturadedados';
+                $scope.pathCofre = 'C:/bpatech/Cofres/fiscapturadedados.kdbx';
+                $scope.chavekp = 'jZ9G/3xm2TEDI4MwcrFjIjE00lqhWcr5hQ/V2W7wor4=';
+                $scope.titlepk = 'Rede_Form'
+                const dataHoje = new Date();
+                const horaAgora = dataHoje.toLocaleTimeString();
+                $scope.horaForm = horaAgora.replaceAll(":","");
+
+                console.log(horaAgora.replaceAll(":",""));
+
+                formAttach.append('attach', $scope.attach);
+               //formAttach.append('whereToSave', encodeURIComponent(defaultDirectory));
+                formAttach.append('whereToSave', $scope.whereToSave);
+                formAttach.append('pathCofre', $scope.pathCofre);
+                formAttach.append('chavekp', $scope.chavekp);
+                formAttach.append('titlepk', $scope.titlepk);
+                formAttach.append('siglaInicioCorreios', $scope.siglaInicioCorreios);
+                formAttach.append('siglaFimCorreios', $scope.siglaFimCorreios);
+                formAttach.append('horaForm', $scope.horaForm);
+                
+            }
+
+            const createSaveJSONFileOnDiskReq = async (formData) => {
+                return {
+                    method: 'POST',
+                    url: ''.concat(window.location.origin, '/bpautils/api/files/createRedeJSONCapturaDeDados'),
+                    data: formData,
+                    headers: {
+                        'Content-Type': undefined,
+                        'Authorization': Authorization
+                    },
+                    transformRequest: angular.identity,
+                    transformResponse: function (data, headersGetter, status) {
+                        return data;
+                    }
+                }
+            };
+
+            async function callFunctions() {
+                $http( await saveFileOnDiskReq(formAttach)).then((response) => {
+                    console.log('saveFileOnDiskReq()');
+                    const caminhoDoArquivo = response.data;
+                    console.log('caminhoDoArquivo', caminhoDoArquivo);
+                    setVariable('anexo', caminhoDoArquivo, 'String');
+                    defer.resolve(caminhoDoArquivo);
+                }, (error) => {
+                    console.log(getMessageFromError(error));
+                    alert('\n\n\nNao foi possivel incluir o formulario.\nFavor entrar em contato com o suporte da BPA!\n\n\n')
+                    $scope.setLesserMessage('Erro... Favor entrar em contato com o suporte da BPA!');
+                    defer.reject(error);
+                });
+                
+                
+                 $http( await createSaveJSONFileOnDiskReq(formAttach)).then((response) => {
+                    console.log('createSaveJSONFileOnDiskReq()');
+                    const caminhoDoArquivo = response.data;
+                    console.log('caminhoDoArquivo', caminhoDoArquivo);
+                    defer.resolve(caminhoDoArquivo);
+                }, (error) => {
+                    console.log(getMessageFromError(error));
+                    alert('\n\n\nNao foi possivel incluir o formulario.\nFavor entrar em contato com o suporte da BPA!\n\n\n')
+                    $scope.setLesserMessage('Erro... Favor entrar em contato com o suporte da BPA!');
+                    defer.reject(error);
+                });
+
+            }
+
+            
+
+			camForm.on('form-loaded', function(evt) {retrieveVariable('status_code');});
+			camForm.on('variables-fetched', function() {});
+			camForm.on('submit', async function(event) {
+                console.log('caminhoDoArquivo', $scope.caminhoDoArquivo);
+
+                callFunctions();
+
+                await defer.promise.then(
+                    (caminhoDoArquivo) => {$scope.caminhoDoArquivo = caminhoDoArquivo;},
+                    (error) => {$scope.caminhoDoArquivo = null;}
+                );
+
+                console.log('Finalizou processo !');
+            });
+            
+		
+		}]);
+        </script>
+
+        <div class="row" style="margin-top:40px">
+			<div ng-class="columnForHeader">
+                <span ng-class="titleStyle"><center><h1>Formulário Captura De Dados</h1></center></span>
+            </div>
+        </div>
+        
+        <div class="row" style="margin-top:40px">
+            <div ng-class="columnForInformation"><label class="label-control"><b>Sigla Início CORREIOS:<sup class="text-danger">*</sup></b></label></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+            <div ng-class="columnForSoloValue(5)">
+                <input type="text" class="form-control" ng-model="siglaInicioCorreios" 
+                    cam-variable-name="siglaInicioCorreios" cam-variable-type="String" required/>
+            </div>
+        </div>
+
+        <div class="row" style="margin-top:40px">
+            <div ng-class="columnForInformation"><label class="label-control"><b>Sigla Fim CORREIOS:<sup class="text-danger">*</sup></b></label></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+            <div ng-class="columnForSoloValue(5)">
+                <input type="text" class="form-control" ng-model="siglaFimCorreios"
+                    cam-variable-name="siglaFimCorreios" cam-variable-type="String" required/>
+            </div>
+        </div>
+
+        <div class="row" style="margin-top:40px">
+            <div ng-class="columnForInformation">
+                <h5>Anexar planilha abaixo:</h5>
+            </div>
+        </div>
+        <div class="row">
+            <div ng-class="columnForSoloValue(7)">
+                <input type="file" class="form-control"
+                        ng-model="chooseAttach" onchange="angular.element(this).scope().changeFiles()" />
+                <button class="btn btn-md btn-warning form-control" ng-click="cleanAttach()"
+                    ng-disabled="(attach == null || attach.length <= 0)"
+                    ng-class="(attach == null || attach.length <= 0) ? 'btn-warning' : 'btn-success'">
+                    Limpar anexo
+                </button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div ng-class="titleStyle" class="alert alert-danger"  ng-show="possuiMensagensErro()">
+                <span>
+                    <h2 class="text-warning text-lg">&#9888;</h2>
+                    <center><h4 class="text-md text-danger text-center">{{ lesserMessage }}</h4></center>
+                </span>
+            </div>
+        </div>
+</form>

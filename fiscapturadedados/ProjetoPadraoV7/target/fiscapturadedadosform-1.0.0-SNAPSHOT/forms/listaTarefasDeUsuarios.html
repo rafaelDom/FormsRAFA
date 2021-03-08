@@ -1,0 +1,257 @@
+<form role="form" 
+	name="frmListaTarefasDeUsuarios"
+	class="form-horizontal"
+	accept-charset="utf-8">
+
+        <script cam-script type="text/form-script">
+            inject(['$http', 'Uri', '$q', function($http, Uri, $q) {
+
+            var mng = camForm.variableManager;
+            const defaultKeys = [];
+
+            const retrieveVariable=a=>{try{mng.fetchVariable(a)}catch(b){console.log(`cannot fetch variable ${a} `,b)}};
+            const setVariable=(a,b,c)=>{let d="";try{d=b instanceof Map?JSON.stringify([...b]):b instanceof Array?JSON.stringify(b):JSON.stringify(b).replace(/[\\]/ig,"").replace(/[\"]/ig,"").replace(/\{/ig,"[").replace(/\}/ig,"]"),mng.variable(a)&&(mng.destroyVariable(a),console.log(`Variável '${a}' destruída com sucesso !`)),mng.createVariable({name:a,value:d,type:c || 'String',isDirty:false}),console.log(`Criada variável '${a}' com o valor '${d}' e com tipo '${c}'`)}catch(b){console.log(`Erro ao setar a variável ${a} com o valor ${d}`,b)}};
+            const getVariableValue = (varName, emptyValue = null) => mng.variable(varName) && mng.variableValue(varName) || emptyValue;
+            
+            const cancelTaskRequest = {
+                method: 'DELETE',
+                url: window.location.origin + '/engine-rest/process-instance/' + camForm.options.processInstanceId,
+                header: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Basic YnBhOmJwYUAzMjE='
+                }
+            }
+
+            $scope.cancelarTask = async () => {
+                if (confirm('Quer cancelar a tarefa atual ?')) {
+                    const reqs = [$http(cancelTaskRequest)];
+                    await $q.all(reqs).then(
+                            function (response) {
+                                alert('Tarefa excluída com sucesso.');
+                                window.location.href = window.location.origin + '/bpm/app/tasklist/';
+                            }, function (error) {
+                                alert('Não foi possível excluir a tarefa.');
+                            }
+                    );
+                }
+            }
+
+            $scope.getDefaultValue = () => {
+                if ($scope.defaultRoute && $scope.defaultRoute.length > 0)
+                    return $scope.defaultRoute;
+                else if ($scope.defaultKey && $scope.defaultKey.length > 0)
+                    return $scope.defaultKey;
+                else
+                    return '';
+            }
+
+            $scope.atribuiTask = (task) => {
+                $scope.defaultKey = null;
+                $scope.defaultRoute = null;
+
+                if (defaultKeys.includes(task)) $scope.defaultKey = task;
+                else $scope.defaultRoute = task;
+            }
+            
+            $scope.selecionaTask = (task) => {
+                $scope.atribuiTask(task);
+                $scope.taskSelecionada = "";
+            }
+
+            $scope.changeTask = (task) => {
+                $scope.atribuiTask(task);
+            }
+
+            $scope.verificaBotao = (task) => {
+                return ($scope.defaultRoute !== task && $scope.defaultKey !== task) ? 'btn btn-md btn-info btn-secondary' : 'btn btn-md btn-secondary btn-muted text-info';
+            }
+
+            $scope.verificaBotaoRefazer = (task) => {
+                return ($scope.defaultRoute !== task && $scope.defaultKey !== task) ? 'btn btn-md btn-warning btn-secondary' : 'btn btn-md btn-secondary btn-muted text-warning';
+            }
+
+            $scope.desabilitaBotao = (task) => {
+                return (task == $scope.taskRetentativa && $scope.noRetentativa >= 3)
+                    || ($scope.defaultRoute == task || $scope.defaultKey == task);
+            }
+
+            $scope.desabilitaCombo = (task) => {
+                return (task == $scope.taskRetentativa && $scope.noRetentativa >= 3)
+                    || ($scope.defaultRoute == task || $scope.defaultKey == task);
+            }
+
+            $scope.taskParametroNaoPossuiLimiteRetentativaDaTarefa = (task) => {
+                return task == $scope.taskRetentativa && $scope.noRetentativa < 3;
+            }
+
+            $scope.taskParametroPossuiLimiteRetentativaDaTarefa = (task) => {
+                return task == $scope.taskRetentativa && $scope.noRetentativa >= 3;
+            }
+
+            $scope.taskAtualPossuiLimiteRetentativaDaTarefa = () => {
+                return $scope.taskAtual == $scope.taskRetentativa && $scope.noRetentativa >= 3;
+            }
+
+            $scope.verificaRetentativa = (task) => {
+                if ($scope.taskAtual == task ) {
+                    const val = parseInt(getVariableValue('noRetentativa'));
+                    setVariable('taskRetentativa', task);
+                    setVariable('noRetentativa', val + 1);
+                } else {
+                    setVariable('taskRetentativa', 'taskRetentativa');
+                    setVariable('noRetentativa', 0);
+                }
+
+                console.log(mng.variableValue('taskRetentativa', task));
+                console.log(mng.variableValue('noRetentativa'));
+            }
+
+            camForm.on('submit', function(evt) {
+                setVariable('default_route', 'null');
+                setVariable('default_key', 'null');
+
+                if ($scope.defaultRoute)
+                    setVariable('default_route', $scope.defaultRoute);
+                if ($scope.defaultKey)
+                    setVariable('default_key', $scope.defaultKey);
+
+                console.log(mng.variableValue('default_key'));
+                console.log(mng.variableValue('default_route'));
+
+                $scope.verificaRetentativa($scope.getDefaultValue());
+            });
+
+			camForm.on('form-loaded', function(evt) {
+                retrieveVariable('taskAtual');
+                retrieveVariable('taskSeguinte');
+                retrieveVariable('userTasks');
+                retrieveVariable('mensagemAnaliseManual');
+
+                retrieveVariable('taskRetentativa');
+                retrieveVariable('noRetentativa');
+
+                retrieveVariable('default_route');
+                retrieveVariable('default_key');
+            });
+
+            camForm.on('variables-applied', function() {
+                try {
+                    if (mng.variable('default_route'))
+                        mng.variableValue('default_route', 'null');
+                    if (mng.variable('default_key'))
+                        mng.variableValue('default_key', 'null');
+                } catch(e) {
+                    console.log('Variáveis default_route OU default_key não existem');
+                }
+            });
+            
+			camForm.on('variables-fetched', function() {
+                $scope.taskAtual = mng.variableValue('taskAtual') || null;
+                $scope.taskSeguinte = mng.variableValue('taskSeguinte') || null;
+
+                $scope.mensagemAnaliseManual = mng.variable('mensagemAnaliseManual') && mng.variableValue('mensagemAnaliseManual') || null;
+
+                $scope.noRetentativa = mng.variable('noRetentativa') && parseInt(mng.variableValue('noRetentativa')) || 0;
+                $scope.taskRetentativa = mng.variable('taskRetentativa') && mng.variableValue('taskRetentativa') || '';
+
+                let userTasks = new String(mng.variableValue('userTasks'));
+                userTasks = userTasks.replace(/[\[\]\"]/g, '');
+                userTasks = userTasks.split(/\s*,\s*/);
+                userTasks = userTasks.map((val) => val.trim());
+
+                if ($scope.taskAtualPossuiLimiteRetentativaDaTarefa())
+                    userTasks = userTasks.filter(task => task != $scope.taskAtual);
+                
+                $scope.userTasks = userTasks;
+            });
+
+        }]); //FIM DO INJECT
+        </script>
+
+		<div class="form-group row">
+            <div class="col col-sm-offset-1 col-md-offset-1 col-lg-offset-1 col-sm-9 col-md-9 col-lg-9 col-xs-12">
+                <span class="text-info"><center><h3>Redirecionamento de Tarefas</h3></center></span>
+            </div>
+        </div>
+        
+        <div class="form-group row" ng-if="userTasks" ng-class="taskSelecionada !== '' ? 'bg-light' : 'bg-secondary'">
+            <div class="col col-sm-offset-1 col-md-offset-1 col-lg-offset-1 col-sm-4 col-md-4 col-lg-4 col-xs-12">
+                <span class="text-info"><h4>Todas As Tasks</h4></span>
+                <select class="form-control"
+                    ng-options="userTask for userTask in userTasks"
+                    options-disabled="desabilitaCombo(userTask)"
+                    ng-change="changeTask(taskSelecionada)"
+                    ng-model="taskSelecionada">
+                    <option value="">Selecione....</option>
+                </select>
+            </div>
+        </div>
+        <hr>
+        <div class="form-group row">
+            <div class="col col-lg-offset-1 col-sm-offset-1 col-md-offset-1 col-lg-10 col-sm-10 col-md-10">
+                <div class="btn-toolbar justify-content-between">
+                    <div class="btn-group" role="group" aria-label="Redirecionamento" ng-if="taskAtual">
+                        <button type="button"
+                            ng-class="verificaBotaoRefazer(taskAtual)"
+                            ng-click="selecionaTask(taskAtual)"
+                            ng-disabled="desabilitaBotao(taskAtual)"
+                            ng-if="taskAtual && taskAtual != 'null' && !taskParametroPossuiLimiteRetentativaDaTarefa(taskAtual)">
+                            <span class="glyphicon glyphicon-hand-down" aria-hidden="true"></span>
+                            {{taskAtual}}
+                            <sup><i>(*Refazer)</i></sup>
+                        </button>
+                        <span class="btn btn-secondary" disabled
+                            ng-if="taskParametroPossuiLimiteRetentativaDaTarefa(taskAtual)">
+                            <h5 class="text-muted"><i><b>{{taskAtual}} Já esgotou o número de tentativas</b></i></h5>
+                        </span>
+                    </div>
+                    <div class="btn-group" role="group" aria-label="Redirecionamento" ng-if="taskSeguinte">
+                        <button type="button"
+                            ng-class="verificaBotao(taskSeguinte)"
+                            ng-click="selecionaTask(taskSeguinte)"
+                            ng-disabled="desabilitaBotao(taskSeguinte)">
+                            {{taskSeguinte}}
+                            <sup><i>(*Próxima)</i></sup>
+                            <span class="glyphicon glyphicon-forward" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    <div class="btn-group pull-right" role="group" aria-label="Cancelar">
+                        <button type="button" class="btn btn-md btn-danger" ng-click="cancelarTask()">
+                            <span class="glyphicon glyphicon-remove-circle" aria-hidden="true"></span>&nbsp;Cancelar a Task
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="form-group row">
+            <div class="col col-lg-offset-2 col-sm-offset-2 col-md-offset-2">
+                <center>
+                    <span ng-if="getDefaultValue()">
+                        <h4 class="text-info" ng-if="getDefaultValue() != taskRetentativa">
+                            ( {{ getDefaultValue() == taskAtual ? 'Refazer tarefa: ' : 'Indo para a tarefa:' }}
+                            <i><b>{{ getDefaultValue() }}</b></i> )
+                        </h4>
+                        <div ng-if="taskParametroPossuiLimiteRetentativaDaTarefa(getDefaultValue())">
+                            <h4 class="text-muted">
+                                ( Esgotou a quantidade de retentativas para a tarefa <i><b>({{noRetentativa}} tentativas)</b></i> )
+                            </h4>
+                        </div>
+                        <div ng-if="taskParametroNaoPossuiLimiteRetentativaDaTarefa(getDefaultValue())">
+                            <h4 class="text-warning">
+                                ( <i><b>{{noRetentativa}} ª</b></i> Retentativa da Tarefa: {{getDefaultValue()}} )
+                            </h4>
+                        </div>
+                    </span>
+                    <span ng-if="!getDefaultValue()" class="text-warning"><h4><i>(Escolha uma rota para o processo)</i></h4></span>
+                </center>
+            </div>
+        </div>
+
+        <div class="form-group row" ng-show="mensagemAnaliseManual">
+            <div class="col col-sm-offset-1 col-xs-offset-1 col-md-offset-1 col-sm-8 col-md-8 col-lg-8 col-xs-10">
+                <p class="alert alert-warning text-lg text-muted" style="border-style:dotted; border-width:3px; padding:1.5em;">
+                    {{mensagemAnaliseManual}}
+                </p>
+            </div>
+        </div>
+</form>
