@@ -1,0 +1,231 @@
+<form role="form" 
+	name="frmExtratoMultiBeneficios"
+	class="form-horizontal"
+	accept-charset="utf-8">
+
+		<script cam-script type="text/form-script">
+		inject(['$http', '$q', function($http, $q) {
+            var mng = camForm.variableManager;
+            const Authorization = 'Basic RklTRXh0cmFjYW9NdWx0aUJlbmVmaWNpb3MwMTpicDRAcjBiMHRz';
+            const formAttach = new FormData();
+
+			const strMapToObj=a=>{let b=Object.create(null);for(let[c,d]of a)b[c]=d;return b},objToStrMap=a=>{let b=new Map;for(let c of Object.keys(a))b.set(c,a[c]);return b};
+			const getObjectFromParsedValue=a=>{try{if(null==mng.variableValue(a)||""==mng.variableValue(a))return null;let b={},c=mng.variableValue(a);const d=c.replace(/[\[\]]/ig,"").split(/\'\s*,\s*\'/);for(let a in d){const[c,e]=d[a].replace(/\'/ig,"").split(":");Object.defineProperty(b,c,{enumerable:!0,configurable:!0,writable:!0,value:e})}return console.log("field",b),b}catch(b){return console.log(`Erro ao pegar variável ${a} !`,b),{}}};
+			const retrieveVariable=a=>{try{mng.fetchVariable(a)}catch(b){}};
+			const setVariable=(a,b,c)=>{let d="";try{d=b instanceof Map?JSON.stringify([...b]):b instanceof Array?JSON.stringify(b):JSON.stringify(b).replace(/[\"]/ig,"").replace(/\{/ig,"[").replace(/\}/ig,"]"),mng.variable(a)&&(mng.destroyVariable(a),console.log(`Variável '${a}' destruída com sucesso !`)),mng.createVariable({name:a,value:d,type:c || 'String',isDirty:false}),console.log(`Criada variável '${a}' com o valor '${d}' e com tipo '${c}'`)}catch(b){console.log(`Erro ao setar a variável ${a} com o valor ${d}`,b)}};
+			const getVariableValue = (varName, emptyValue = null) => mng.variable(varName) && mng.variableValue(varName) || emptyValue;
+			const getVariableIntValue = (varName) => mng.variable(varName) && parseInt(mng.variableValue(varName)) || 0;
+			const getArrayValueFromJson = (varName) => (mng.variable(varName) && mng.variableValue(varName) !== undefined && JSON.parse(mng.variableValue(varName).replace(/\'/ig, '"'))) || [];
+			const isEmpty = (value) => value === null || value === undefined || value === '';
+
+            $scope.labelStyle = "label-control text-muted text-md";
+            $scope.infoStyle = (val) => val ? "text-info text-md" : "text-danger text-md";
+            $scope.titleStyle = "text-info text-lg";
+            $scope.errTitleStyle = "text-danger text-lg font-weight-light font-italic";
+            $scope.buttonStyle = "btn btn-md btn-primary";
+            $scope.buttonErrStyle = "btn btn-md btn-danger";
+            $scope.columnCombined = "col col-sm-offset-2 col-md-offset-2 col-lg-offset-2 col-md-10 col-lg-10 col-sm-10";
+            $scope.columnButton = "col col-sm-offset-3 col-md-offset-3 col-lg-offset-3 col-md-9 col-lg-9 col-sm-9";
+            $scope.columnForInformation = (`col col-sm-offset-1 col-md-offset-1 col-lg-offset-1 col-sm-3 col-md-3 col-lg-3 col-xs-12 `);
+            $scope.columnForSoloValue = (columnSize = 7) => (
+                `col col-sm-offset-1 col-md-offset-1 col-lg-offset-1 col-sm-${columnSize} col-md-${columnSize} col-lg-${columnSize} col-xs-12 `
+            );
+            $scope.columnForHeader = (`col col-sm-offset-3 col-md-offset-3 col-lg-offset-3 col-xs-offset-3 col-sm-7 col-md-7 col-lg-7 col-xs-9 `);
+            
+            $scope.columnLabel = "col col-sm-3 col-md-3 col-lg-3 col-xs-12 text-right";
+            $scope.columnForValue = "col col-sm-7 col-md-7 col-lg-7 col-xs-12";
+            $scope.columnForCombo = "col col-sm-5 col-md-5 col-lg-5 col-xs-12";
+
+            $scope.lesserMessage = '';
+            $scope.possuiMensagensErro = () => $scope.lesserMessage && $scope.lesserMessage.length > 0;
+            $scope.setLesserMessage = (message) => {
+                let mainTimeout;
+                if (message === null  || message === undefined) return;
+                    $scope.lesserMessage += $scope.lesserMessage.length > 0 ? ' | ' + message : '';
+                if (mainTimeout !== undefined) window.clearTimeout(mainTimeout);
+                    mainTimeout = window.setTimeout(() => { $scope.lesserMessage = '';}, 5000);
+            }
+                    
+			camForm.on('variables-fetched', function() { });
+			camForm.on('submit', async function(event) {
+                console.log('submetendo o form');
+                //setVariable('recebidoEmail', $scope.recebidoEmail, 'String');
+                //setVariable('status_code', '0', 'String');
+                callFunctions();
+             });
+
+
+             const capturarDados = async () => {
+                const defer = $q.defer();
+                
+                $scope.whereToSave = '//10.111.177.141/BKP_BPA/TesteForm/alelorelatoriodeentrega';
+                $scope.pathCofre = 'C:/bpatech/Cofres/fiscapturadedados.kdbx';
+                $scope.chavekp = 'jZ9G/3xm2TEDI4MwcrFjIjE00lqhWcr5hQ/V2W7wor4=';
+                $scope.titlepk = 'Rede_Form'
+                const dataHoje = new Date();
+                const horaAgora = dataHoje.toLocaleTimeString();
+                $scope.horaForm = horaAgora.replaceAll(":","");
+
+                console.log(horaAgora.replaceAll(":",""));
+
+                let dataAux = new Date($scope.dataPedidoInicial);
+                $scope.dataPedidoInicialFmt = dataAux.toLocaleDateString('pt-BR', {timeZone: 'UTC'});
+                
+                dataAux = new Date($scope.dataPedidoFinal);
+                $scope.dataPedidoFinalFmt = dataAux.toLocaleDateString('pt-BR', {timeZone: 'UTC'});
+                
+                formAttach.append('attach', $scope.attach);
+                formAttach.append('whereToSave', $scope.whereToSave);
+                formAttach.append('pathCofre', $scope.pathCofre);
+                formAttach.append('chavekp', $scope.chavekp);
+                formAttach.append('titlepk', $scope.titlepk);
+                formAttach.append('horaForm', $scope.horaForm);
+
+                formAttach.append('origemAtendimento', $scope.origemAtendimento);
+                formAttach.append('grupoExpedicao', $scope.grupoExpedicao);
+                formAttach.append('dataPedidoInicial',  $scope.dataPedidoInicialFmt);
+                formAttach.append('dataPedidoFinal',  $scope.dataPedidoFinalFmt)
+                formAttach.append('contrato', $scope.contrato);
+                //formAttach.append('numeroProtocolo', $scope.numeroProtocolo)
+                //formAttach.append('emailRetorno', $scope.emailRetorno);
+                //formAttach.append('emailRecebido', $scope.emailRecebido);
+            }
+
+            const createSaveJSONFileOnDiskReq = async (formData) => {
+                return {
+                    method: 'POST',
+                    url: ''.concat(window.location.origin, '/bpautils/api/files/createRedeJSONAleloRelatorioEntrega'),
+                    data: formData,
+                    headers: {
+                        'Content-Type': undefined,
+                        'Authorization': Authorization
+                    },
+                    transformRequest: angular.identity,
+                    transformResponse: function (data, headersGetter, status) {
+                        return data;
+                    }
+                }
+            };
+
+            async function callFunctions(){
+                console.log("callFunctions()");
+                capturarDados();
+
+                $http( await createSaveJSONFileOnDiskReq(formAttach)).then((response) => {
+                    console.log('createSaveJSONFileOnDiskReq() -> criando json do processo na rede');
+                    const caminhoDoArquivo = response.data;
+                    console.log('caminhoDoArquivo', caminhoDoArquivo);
+                    //setVariable('anexo', caminhoDoArquivo, 'String');
+                    defer.resolve(caminhoDoArquivo);
+                }, (error) => {
+                    console.log(getMessageFromError(error));
+                    alert('\n\n\nNao foi possivel incluir o formulario.\nFavor entrar em contato com o suporte da BPA!\n\n\n')
+                    $scope.setLesserMessage('Erro... Favor entrar em contato com o suporte da BPA!');
+                    defer.reject(error);
+                });
+            
+            }
+
+		}]);
+        </script>
+
+        <div class="row" style="margin-top:40px">
+			<div ng-class="columnForHeader">
+                <span ng-class="titleStyle"><center><h3>Contate a Gente Hoje!</h3></center></span>
+            </div>
+        </div>
+        
+        <div class="row" style="margin-top:40px">
+            <div ng-class="columnForInformation"><label class="label-control"><b>Origem do atendimento<sup class="text-danger">*</sup></b></label></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+            <div ng-class="columnForSoloValue()">
+                <select class="form-control" ng-model="origemAtendimento" required
+                    cam-variable-name="origemAtendimento" cam-variable-type="String">
+                    <option value="premium_email">Premium E-mail</option>
+                    <option value="premium_ligacao">Premium Ligação</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="row" style="margin-top:40px">
+            <div ng-class="columnForInformation"><label class="label-control"><b>Grupo expedição<sup class="text-danger">*</sup></b></label></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+            <div ng-class="columnForSoloValue()">
+                <select class="form-control" ng-model="grupoExpedicao" required
+                    cam-variable-name="grupoExpedicao" cam-variable-type="String">
+                    <option value="Pat">Pat</option>
+                    <option value="Porta a porta">Porta a porta</option>
+                </select>
+            </div>
+        </div>
+        <div class="row" style="margin-top:40px">
+            <div ng-class="columnForInformation"><label class="label-control"><b>Data do Pedido Inicial:<sup class="text-danger">*</sup></b></label></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+            <div ng-class="columnForSoloValue()">
+                <input type="datetime-local" class="form-control" ng-model="dataPedidoInicial" required
+                    cam-variable-name="dataPedidoInicial" cam-variable-type="String" />
+            </div>
+        </div>
+
+        <div class="row" style="margin-top:40px">
+            <div ng-class="columnForInformation"><label class="label-control"><b>Data do Pedido Final:<sup class="text-danger">*</sup></b></label></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+            <div ng-class="columnForSoloValue()">
+                <input type="datetime-local" class="form-control" ng-model="dataPedidoFinal" required
+                    cam-variable-name="dataPedidoFinal" cam-variable-type="String" />
+            </div>
+        </div>
+
+        <div class="row" style="margin-top:40px">
+            <div ng-class="columnForInformation"><label class="label-control"><b>Contrato <sup class="text-danger">*</sup></b></label></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+            <div ng-class="columnForSoloValue()">
+                <input type="text" class="form-control" ng-model="contrato" required
+                    cam-variable-name="contrato" cam-variable-type="String" />
+            </div>
+        </div>
+
+<!--         <div class="row" style="margin-top:40px">
+            <div ng-class="columnForInformation"><label class="label-control">Email Recebido?</label></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+            <div ng-class="columnForSoloValue(5)">
+                <input type="checkbox" class="form-control" ng-model="recebidoEmail" ng-true-value="sim" ng-false-value="nao" required
+                     cam-variable-name="emailRecebido" cam-variable-type="String"/>
+            </div>
+        </div>
+ -->
+    <!--<div class="row" style="margin-top:40px">
+            <div ng-class="columnForInformation"><label class="label-control"><b>Número do Procotolo:<sup class="text-danger">*</sup></b></label></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+            <div ng-class="columnForSoloValue()">
+                <input type="text" class="form-control" ng-model="numeroProtocolo" required
+                    cam-variable-name="numeroProtocolo" cam-variable-type="String" />
+            </div>
+        </div> -->
+
+<!--         <div class="row" style="margin-top:40px">
+            <div ng-class="columnForInformation"><label class="label-control"><b>Email de Retorno:<sup class="text-danger">*</sup></b></label></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+            <div ng-class="columnForSoloValue()">
+                <input type="email" class="form-control" ng-model="emailRetorno" required
+                    cam-variable-name="emailRetorno" cam-variable-type="String" />
+            </div>
+        </div>
+ -->
+        <div class="row">
+            <div class="alert alert-danger" ng-class="columnForInformation" ng-show="possuiMensagensErro()">
+                <span>
+                    <h2 class="text-warning text-lg">&#9888;</h2>
+                    <h4 class="text-md text-danger text-center">{{ lesserMessage }}</h4>
+                </span>
+            </div>
+        </div>
+</form> 
