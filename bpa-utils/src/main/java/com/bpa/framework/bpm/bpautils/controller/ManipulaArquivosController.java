@@ -179,13 +179,14 @@ public class ManipulaArquivosController {
 		}
 		String name = URLDecoder.decode(attach.getOriginalFilename(), "UTF-8");
 		//File attachLocal = new File(folder,  timestamp + "-" + name);
-		SmbFile attachLocal = new SmbFile(folder + "/" + timestamp + "-" + name, auth);
+		SmbFile attachLocal = new SmbFile(folder + "/" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm + "-" + name, auth);
 
 		System.out.println("attachLocal arquivo de rede: " + attachLocal);
 
 		SmbFileOutputStream smbfosAttachLocal = new SmbFileOutputStream(attachLocal);
 
 		smbfosAttachLocal.write(attach.getBytes());
+		smbfosAttachLocal.close();
 		//Files.write(Paths.get(attachLocal.getCanonicalPath()), attach.getBytes());
 		if (!(attachLocal.isFile() && attachLocal.canRead())) {
 			System.err.println("O arquivo nao existe ou nao esta disponivel para leitura");
@@ -295,7 +296,7 @@ public class ManipulaArquivosController {
 			throw new IllegalStateException("Falha ao montar JSON!" + e);
 		}
 		
-		String nameFileJSON = horaForm + ".json";
+		String nameFileJSON = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm + ".json";
 		System.out.println("nameFileJSON: " + nameFileJSON);
 		String strPathFileJSON = "smb:" + whereToSavePair.getValue1() + "/" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm + "/" + nameFileJSON;
 
