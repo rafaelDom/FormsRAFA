@@ -30,6 +30,7 @@ import com.bpa.framework.bpm.bpautils.model.KeePassBPA;
 import com.bpa.framework.bpm.bpautils.model.ObjJSON;
 import com.bpa.framework.bpm.bpautils.service.GetUserPassKeePass;
 import com.bpa.framework.bpm.bpautils.service.GeraJSON;
+import com.bpa.framework.bpm.bpautils.service.RemoveCaracteresEspecias;
 
 @Controller
 @RequestMapping("/api/files")
@@ -76,7 +77,8 @@ public class ManipulaArquivosController {
 		System.out.println("Pasta do arquivo: " + folder.getAbsolutePath());
 		
 		String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("hhmmss"));
-		String name = URLDecoder.decode(attach.getOriginalFilename(), "UTF-8");
+		String name = RemoveCaracteresEspecias.removerCarateresEspeciais(URLDecoder.decode(attach.getOriginalFilename(), "UTF-8"));
+		name = name.replaceAll("[^a-zA-Z0-9.]", "");
 		File attachLocal = new File(folder,  timestamp + "-" + name);
 		
 		Files.write(Paths.get(attachLocal.getAbsolutePath()), attach.getBytes());
@@ -177,7 +179,8 @@ public class ManipulaArquivosController {
 		}else{
 			timestamp = horaForm;
 		}
-		String name = URLDecoder.decode(attach.getOriginalFilename(), "UTF-8");
+		String name = RemoveCaracteresEspecias.removerCarateresEspeciais(URLDecoder.decode(attach.getOriginalFilename(), "UTF-8"));
+		name = name.replaceAll("[^a-zA-Z0-9.]", "");
 		//File attachLocal = new File(folder,  timestamp + "-" + name);
 		SmbFile attachLocal = new SmbFile(folder + "/" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm + "-" + name, auth);
 
