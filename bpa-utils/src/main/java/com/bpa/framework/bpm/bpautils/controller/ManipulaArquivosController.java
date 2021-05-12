@@ -45,18 +45,17 @@ public class ManipulaArquivosController {
 		System.out.println(localHost.getHostName());
 		System.out.println(localHost.getCanonicalHostName());
 	}
-	
+
 	@RequestMapping(value = "/createLocalFile", method = RequestMethod.POST)
 	@ResponseBody
-	public String criarArquivoLocal(
-			@RequestParam(value = "attach", required = true) MultipartFile attach,
-			@RequestParam(value = "whereToSave", required = false) String whereToSave) 
+	public String criarArquivoLocal(@RequestParam(value = "attach", required = true) MultipartFile attach,
+			@RequestParam(value = "whereToSave", required = false) String whereToSave)
 			throws IOException, UnknownHostException {
-		
-		Pair<InetAddress, String> whereToSavePair = (whereToSave == null || whereToSave.isEmpty()) 
+
+		Pair<InetAddress, String> whereToSavePair = (whereToSave == null || whereToSave.isEmpty())
 				? thisService.getHostWhereToSave()
 				: new Pair<InetAddress, String>(null, whereToSave);
-				
+
 		System.out.println("whereToSave: " + whereToSavePair.getValue1());
 		System.out.println("attach: " + attach.getOriginalFilename() + " | " + attach.getContentType());
 
@@ -65,37 +64,37 @@ public class ManipulaArquivosController {
 			defaultDirectory.mkdirs();
 		if (!defaultDirectory.isDirectory())
 			throw new IllegalArgumentException("O arquivo nao e um diretorio");
-		
+
 		System.out.println("Diretorio padrao: " + defaultDirectory.getAbsolutePath());
-		
+
 		File folder = new File(defaultDirectory, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")));
 		if (!folder.exists()) {
 			folder.mkdirs();
-			System.out.println("Diretorio com a data foi criado + ["+folder.getName()+"]");
+			System.out.println("Diretorio com a data foi criado + [" + folder.getName() + "]");
 		}
-		
+
 		System.out.println("Pasta do arquivo: " + folder.getAbsolutePath());
-		
+
 		String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("hhmmss"));
-		String name = RemoveCaracteresEspecias.removerCarateresEspeciais(URLDecoder.decode(attach.getOriginalFilename(), "UTF-8"));
+		String name = RemoveCaracteresEspecias
+				.removerCarateresEspeciais(URLDecoder.decode(attach.getOriginalFilename(), "UTF-8"));
 		name = name.replaceAll("[^a-zA-Z0-9.]", "");
-		File attachLocal = new File(folder,  timestamp + "-" + name);
-		
+		File attachLocal = new File(folder, timestamp + "-" + name);
+
 		Files.write(Paths.get(attachLocal.getAbsolutePath()), attach.getBytes());
 		if (!(attachLocal.isFile() && attachLocal.canRead())) {
 			System.err.println("O arquivo nao existe ou nao esta disponivel para leitura");
 			throw new IllegalStateException("O arquivo nao existe ou nao esta disponivel para leitura");
 		}
-		
+
 		System.out.println("Arquivo para salvar: " + attachLocal.getAbsolutePath());
-		
+
 		return attachLocal.getAbsolutePath().replace("\\", "/");
 	}
 
 	@RequestMapping(value = "/createRedeFile", method = RequestMethod.POST)
 	@ResponseBody
-	public String criarArquivoRede(
-			@RequestParam(value = "attach", required = true) MultipartFile attach,
+	public String criarArquivoRede(@RequestParam(value = "attach", required = true) MultipartFile attach,
 			@RequestParam(value = "whereToSave", required = true) String whereToSave,
 			@RequestParam(value = "pathCofre", required = true) String pathCofre,
 			@RequestParam(value = "chavekp", required = true) String chavekp,
@@ -103,86 +102,102 @@ public class ManipulaArquivosController {
 			@RequestParam(value = "horaForm", required = false) String horaForm)
 			throws IOException, UnknownHostException, Exception {
 
-		System.out.println("criarArquivoRede() ");	
-		if(horaForm == null || horaForm.isEmpty()){
+		System.out.println("criarArquivoRede() ");
+		if (horaForm == null || horaForm.isEmpty()) {
 			horaForm = "";
 		}
 
 		InetAddress address = InetAddress.getLocalHost();
-		Pair<InetAddress, String> whereToSavePair = (whereToSave == null || whereToSave.isEmpty()) 
+		Pair<InetAddress, String> whereToSavePair = (whereToSave == null || whereToSave.isEmpty())
 				? thisService.getHostWhereToSave()
 				: new Pair<InetAddress, String>(address, whereToSave);
-				
+
 		System.out.println("whereToSave: " + whereToSavePair.getValue1());
 		System.out.println("attach: " + attach.getOriginalFilename() + " | " + attach.getContentType());
 		System.out.println("chavekp: " + chavekp);
-		
+
 		String classDecrypt = "C:\\bpatech\\Cofres\\Decrypt\\BPACryptHelper.class";
-		if(!new File(classDecrypt).exists()) {
-			throw new IllegalStateException("Falha ao encontrar a classe BPACryptHelper.class em C:\\bpatech\\Cofres\\Decrypt");
+		if (!new File(classDecrypt).exists()) {
+			throw new IllegalStateException(
+					"Falha ao encontrar a classe BPACryptHelper.class em C:\\bpatech\\Cofres\\Decrypt");
 		}
 
-		Process p = Runtime.getRuntime().exec("cmd.exe /q /c java -cp C:\\bpatech\\Cofres\\Decrypt BPACryptHelper goback " + chavekp);
+		Process p = Runtime.getRuntime()
+				.exec("cmd.exe /q /c java -cp C:\\bpatech\\Cofres\\Decrypt BPACryptHelper goback " + chavekp);
 		p.waitFor();
 		BufferedReader buf = new BufferedReader(new InputStreamReader(p.getInputStream()));
 		String chavekpDecrypt = "";
 		chavekpDecrypt = buf.readLine();
 		System.out.println("chavekpDecrypt: " + chavekpDecrypt);
 
-
 		KeePassBPA kp = new KeePassBPA();
 		GetUserPassKeePass getUserPassKeePass = new GetUserPassKeePass();
 		kp = getUserPassKeePass.getData(pathCofre, chavekpDecrypt, titlepk);
 
-		//File defaultDirectory = new File(whereToSavePair.getValue1());
+		// File defaultDirectory = new File(whereToSavePair.getValue1());
 		NtlmPasswordAuthentication auth = new NtlmPasswordAuthentication("", kp.getUsuario(), kp.getSenha());
 		SmbFile defaultDirectory = new SmbFile("smb:" + whereToSavePair.getValue1(), auth);
 
 		System.out.println("File (defaultDirectory): " + defaultDirectory);
 
-		if (!defaultDirectory.exists()){
+		if (!defaultDirectory.exists()) {
 			try {
 				System.out.println("Dir nao existe, criando...");
-				defaultDirectory.mkdirs();	
+				defaultDirectory.mkdirs();
 			} catch (Exception e) {
 				System.out.println("Falha ao criar diretorio: " + defaultDirectory);	
-				throw new IllegalStateException(e);
+				System.out.println("Aguardando 3 segundos");
+				try {
+					Thread.sleep(2000);
+					if(!defaultDirectory.exists()) {
+						defaultDirectory.mkdirs();
+					}else {
+						System.out.println("Dir criado: " + defaultDirectory);
+					}
+				}catch (Exception f) {
+					throw new IllegalStateException(f);
+				}
 			}
-			
-		}else{
-			System.out.println("Diretorio existe: " + whereToSavePair.getValue1());	
+		} else {
+			System.out.println("Diretorio existe: " + whereToSavePair.getValue1());
 		}
 
 		if (!defaultDirectory.isDirectory())
 			throw new IllegalArgumentException("O arquivo nao e um diretorio");
-		
+
 		System.out.println("Diretorio padrao folder rede: " + defaultDirectory);
-		
-		SmbFile folder = new SmbFile(defaultDirectory + "/" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm, auth);
-		//File folder = new File(defaultDirectory, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")));
+
+		SmbFile folder = new SmbFile(
+				defaultDirectory + "/" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm,
+				auth);
+		// File folder = new File(defaultDirectory,
+		// LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")));
 		if (!folder.exists()) {
 			System.out.println("Dir de rede nao existe criando ...");
-			try{
+			try {
 				folder.mkdirs();
 			} catch (Exception e) {
 				System.out.println("Falha ao criar diretorio de rede, possivelmente ja criado: " + folder);
 			}
-			System.out.println("Diretorio com a data foi criado + ["+folder.getName()+"]");
+			System.out.println("Diretorio com a data foi criado + [" + folder.getName() + "]");
 		}
-		
+
 		System.out.println("Pasta do arquivo de rede: " + folder);
-		
-		//String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("hhmmss"));
+
+		// String timestamp =
+		// LocalDateTime.now().format(DateTimeFormatter.ofPattern("hhmmss"));
 		String timestamp = "";
-		if(horaForm == null || horaForm.isEmpty()){
+		if (horaForm == null || horaForm.isEmpty()) {
 			timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("hhmmss"));
-		}else{
+		} else {
 			timestamp = horaForm;
 		}
-		String name = RemoveCaracteresEspecias.removerCarateresEspeciais(URLDecoder.decode(attach.getOriginalFilename(), "UTF-8"));
+		String name = RemoveCaracteresEspecias
+				.removerCarateresEspeciais(URLDecoder.decode(attach.getOriginalFilename(), "UTF-8"));
 		name = name.replaceAll("[^a-zA-Z0-9.]", "");
-		//File attachLocal = new File(folder,  timestamp + "-" + name);
-		SmbFile attachLocal = new SmbFile(folder + "/" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm + "-" + name, auth);
+		// File attachLocal = new File(folder, timestamp + "-" + name);
+		SmbFile attachLocal = new SmbFile(folder + "/"
+				+ LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm + "-" + name, auth);
 
 		System.out.println("attachLocal arquivo de rede: " + attachLocal);
 
@@ -190,14 +205,14 @@ public class ManipulaArquivosController {
 
 		smbfosAttachLocal.write(attach.getBytes());
 		smbfosAttachLocal.close();
-		//Files.write(Paths.get(attachLocal.getCanonicalPath()), attach.getBytes());
+		// Files.write(Paths.get(attachLocal.getCanonicalPath()), attach.getBytes());
 		if (!(attachLocal.isFile() && attachLocal.canRead())) {
 			System.err.println("O arquivo nao existe ou nao esta disponivel para leitura");
 			throw new IllegalStateException("O arquivo nao existe ou nao esta disponivel para leitura");
 		}
-		
+
 		System.out.println("Arquivo para salvar: " + attachLocal);
-		
+
 		return attachLocal.toString().replace("\\", "/");
 	}
 
@@ -258,64 +273,73 @@ public class ManipulaArquivosController {
 				defaultDirectory.mkdirs();	
 			} catch (Exception e) {
 				System.out.println("Falha ao criar diretorio: " + defaultDirectory);	
-				throw new IllegalStateException(e);
+				System.out.println("Aguardando 3 segundos");
+				try {
+					Thread.sleep(3000);
+					if(!defaultDirectory.exists()) {
+						defaultDirectory.mkdirs();
+					}else {
+						System.out.println("Dir criado: " + defaultDirectory);
+					}
+				}catch (Exception f) {
+					throw new IllegalStateException(f);
+				}
 			}
-			
 		}else{
-			System.out.println("Diretorio existe: " + whereToSavePair.getValue1());	
+			System.out.println("Diretorio existe: " + whereToSavePair.getValue1());
 		}
 
-		if (!defaultDirectory.isDirectory())
-			throw new IllegalArgumentException("O arquivo nao e um diretorio");
-		
-		System.out.println("Diretorio padrao: " + defaultDirectory);
-		
-		SmbFile folder = new SmbFile(defaultDirectory + "/" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm, auth);
-		//File folder = new File(defaultDirectory, LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")));
-		if (!folder.exists()) {
-			folder.mkdirs();
-			System.out.println("Diretorio com a data foi criado + ["+folder.getName()+"]");
-		}
-		
-		System.out.println("Pasta do arquivo json: " + folder);
-		
-		List<ObjJSON> listaObjJSON = new ArrayList<ObjJSON>();
-		
-		ObjJSON objJSON1 = new ObjJSON();
-		objJSON1.setChave("siglaInicioCorreios");
-		objJSON1.setValor(siglaInicioCorreios);
-		listaObjJSON.add(objJSON1);
-		
-		ObjJSON objJSON2 = new ObjJSON();
-		objJSON2.setChave("siglaFimCorreios");
-		objJSON2.setValor(siglaFimCorreios);
-		listaObjJSON.add(objJSON2);
-		
-		GeraJSON  geraJSON = new GeraJSON();
-		String JSON = "";
-		try{
-			JSON = geraJSON.gerarJSON(listaObjJSON);
-		}catch (Exception e) {
-			throw new IllegalStateException("Falha ao montar JSON!" + e);
-		}
-		
-		String nameFileJSON = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm + ".json";
-		System.out.println("nameFileJSON: " + nameFileJSON);
-		String strPathFileJSON = "smb:" + whereToSavePair.getValue1() + "/" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm + "/" + nameFileJSON;
+	if(!defaultDirectory.isDirectory())throw new IllegalArgumentException("O arquivo nao e um diretorio");
 
-		SmbFile fileJSON = new SmbFile(strPathFileJSON, auth);
-		SmbFileOutputStream opsFileJSON = new SmbFileOutputStream(fileJSON);
-		opsFileJSON.write(JSON.getBytes());
-		opsFileJSON.close();
+	System.out.println("Diretorio padrao: "+defaultDirectory);
 
-		if (!(fileJSON.isFile() && fileJSON.canRead())) {
-			System.err.println("O arquivo nao existe ou nao esta disponivel para leitura");
-			throw new IllegalStateException("O arquivo nao existe ou nao esta disponivel para leitura");
-		}
-		
-		System.out.println("Arquivo criado e salvo: " + strPathFileJSON);
-		
-		return strPathFileJSON.toString().replace("\\", "/");
+	SmbFile folder = new SmbFile(
+			defaultDirectory + "/" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm,
+			auth);
+	// File folder = new File(defaultDirectory,
+	// LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")));
+	if(!folder.exists())
+	{
+		folder.mkdirs();
+		System.out.println("Diretorio com a data foi criado + [" + folder.getName() + "]");
+	}
+
+	System.out.println("Pasta do arquivo json: "+folder);
+
+	List<ObjJSON> listaObjJSON = new ArrayList<ObjJSON>();
+
+	ObjJSON objJSON1 = new ObjJSON();objJSON1.setChave("siglaInicioCorreios");objJSON1.setValor(siglaInicioCorreios);listaObjJSON.add(objJSON1);
+
+	ObjJSON objJSON2 = new ObjJSON();objJSON2.setChave("siglaFimCorreios");objJSON2.setValor(siglaFimCorreios);listaObjJSON.add(objJSON2);
+
+	GeraJSON geraJSON = new GeraJSON();
+	String JSON = "";try
+	{
+		JSON = geraJSON.gerarJSON(listaObjJSON);
+	}catch(
+	Exception e)
+	{
+		throw new IllegalStateException("Falha ao montar JSON!" + e);
+	}
+
+	String nameFileJSON = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm
+			+ ".json";System.out.println("nameFileJSON: "+nameFileJSON);
+	String strPathFileJSON = "smb:" + whereToSavePair.getValue1() + "/"
+			+ LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + horaForm + "/" + nameFileJSON;
+
+	SmbFile fileJSON = new SmbFile(strPathFileJSON, auth);
+	SmbFileOutputStream opsFileJSON = new SmbFileOutputStream(
+			fileJSON);opsFileJSON.write(JSON.getBytes());opsFileJSON.close();
+
+	if(!(fileJSON.isFile()&&fileJSON.canRead()))
+	{
+		System.err.println("O arquivo nao existe ou nao esta disponivel para leitura");
+		throw new IllegalStateException("O arquivo nao existe ou nao esta disponivel para leitura");
+	}
+
+	System.out.println("Arquivo criado e salvo: "+strPathFileJSON);
+
+	return strPathFileJSON.toString().replace("\\","/");
 	}
 
 	@RequestMapping(value = "/createRedeJSONAleloRelatorioEntrega", method = RequestMethod.POST)
